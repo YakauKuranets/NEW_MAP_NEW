@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title data-i18n="cc_title">Командный центр — Map v12</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_common.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_panel.css') }}">
+</head>
+<body class="light theme-blue admin">
+  <header class="ap-header">
+    <div class="ap-brand">
+      <span class="ap-brand__logo">🧭</span>
+      <div>
+        <div class="ap-brand__title" data-i18n="cc_brand">Командный центр</div>
+        <div class="ap-brand__sub muted"><span data-i18n="cc_server_time">время сервера:</span> <span id="server-time">—</span></div>
+      </div>
+    </div>
+
+    <div class="ap-search">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input id="ap-search" class="input" placeholder="Поиск: наряд / TG ID / заявка #…" data-i18n-placeholder="cc_search_ph">
+      <button id="ap-search-btn" class="btn" type="button"><i class="fa-solid fa-magnifying-glass"></i> <span class="lbl" data-i18n="cc_btn_find">Найти</span></button>
+    </div>
+
+    <div class="ap-actions">
+      <button id="ap-toggle-sidebar" class="btn" type="button" title="Скрыть/показать панель"><i class="fa-solid fa-bars"></i></button>
+
+      <button id="ap-toggle-tools" class="btn ap-hide-mobile" type="button" title="Показать/скрыть KPI и фильтры">
+        <i class="fa-solid fa-sliders"></i> <span class="lbl"><span data-i18n="cc_btn_panel">Панель</span></span>
+      </button>
+
+      <button id="btn-pair-code" class="btn ap-hide-mobile" type="button" title="Сгенерировать код привязки трекера">
+        <i class="fa-solid fa-link"></i> <span class="lbl"><span data-i18n="cc_btn_code">Код</span></span>
+      </button>
+
+      <button id="btn-chat" class="btn ap-hide-mobile" type="button" title="Чат">
+        <i class="fa-solid fa-comments"></i> <span class="lbl"><span data-i18n="cc_btn_chat">Чат</span></span>
+      </button>
+
+      <a id="ap-service-link" class="btn ap-hide-mobile" href="/admin/service" title="Служба: заявки и привязка">
+        <i class="fa-solid fa-shield-halved"></i> <span class="lbl"><span data-i18n="cc_btn_service">Служба</span></span>
+        <span id="svc-pending-badge" class="ap-badge red" style="display:none; margin-left:6px;">0</span>
+      </a>
+
+      <a class="btn ap-hide-mobile" href="/" title="На карту"><i class="fa-solid fa-map"></i> <span class="lbl"><span data-i18n="cc_btn_map">Карта</span></span></a>
+      <a class="btn ap-hide-mobile" href="/admin/devices" title="Устройства трекера"><i class="fa-solid fa-mobile-screen"></i> <span class="lbl"><span data-i18n="cc_btn_devices">Устройства</span></span></a>
+      <a class="btn ap-hide-mobile" href="/admin/problems" title="Проблемы/алёрты трекера"><i class="fa-solid fa-triangle-exclamation"></i> <span class="lbl"><span data-i18n="cc_btn_problems">Проблемы</span></span></a>
+      <a class="btn ap-hide-mobile" href="/admin/metrics" title="Метрики/мониторинг"><i class="fa-solid fa-chart-line"></i> <span class="lbl"><span data-i18n="cc_btn_metrics">Метрики</span></span></a>
+
+      <button id="ap-refresh" class="btn primary" type="button" title="Обновить"><i class="fa-solid fa-rotate"></i></button>
+
+      <button id="ap-lang" class="btn ap-hide-mobile" type="button" data-i18n-title="common_language" title="Язык">
+        <i class="fa-solid fa-language"></i> <span id="ap-lang-label">RU</span>
+      </button>
+      <button id="ap-theme" class="btn ap-hide-mobile" type="button" data-i18n-title="common_theme" title="Тема">
+        <i class="fa-solid fa-circle-half-stroke"></i>
+      </button>
+
+      <button id="ap-more" class="btn ap-show-mobile" type="button" title="Ещё"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+      <div id="ap-more-menu" class="dropdown-menu">
+        <button class="dropdown-item" type="button" data-act="toggleTools"><i class="fa-solid fa-sliders"></i> Панель KPI/фильтры</button>
+        <button class="dropdown-item" type="button" data-act="pair"><i class="fa-solid fa-link"></i> Код привязки</button>
+        <button class="dropdown-item" type="button" data-act="chat"><i class="fa-solid fa-comments"></i><span data-i18n="cc_btn_chat">Чат</span></button>
+        <a class="dropdown-item" href="/admin/service"><i class="fa-solid fa-shield-halved"></i><span data-i18n="cc_btn_service">Служба</span><span id="svc-pending-badge-mobile" class="ap-badge red" style="display:none; margin-left:8px;">0</span></a>
+        <a class="dropdown-item" href="/"><i class="fa-solid fa-map"></i> На карту</a>
+        <a class="dropdown-item" href="/admin/devices"><i class="fa-solid fa-mobile-screen"></i><span data-i18n="cc_btn_devices">Устройства</span></a>
+        <a class="dropdown-item" href="/admin/problems"><i class="fa-solid fa-triangle-exclamation"></i><span data-i18n="cc_btn_problems">Проблемы</span></a>
+        <a class="dropdown-item" href="/admin/metrics"><i class="fa-solid fa-chart-line"></i><span data-i18n="cc_btn_metrics">Метрики</span></a>
+        <div class="dropdown-sep"></div>
+        <button class="dropdown-item" type="button" data-act="theme"><i class="fa-solid fa-circle-half-stroke"></i> <span data-i18n="common_theme">Тема</span></button>
+        <button class="dropdown-item" type="button" data-act="lang"><i class="fa-solid fa-language"></i> <span data-i18n="common_language">Язык</span></button>
+      </div>
+    </div>
+  </header>
+
+  <div id="ap-alertbar" class="ap-alertbar" style="display:none"></div>
+
+  <div class="ap-layout">
+    <aside class="ap-sidebar">
+
+      <section class="ap-card">
+        <div class="ap-card__head">
+          <div class="ap-card__title"><i class="fa-solid fa-person-military-pointing"></i> <span data-i18n="cc_sidebar_active">Активные наряды</span></div>
+          <div class="ap-badges">
+            <span class="ap-badge" id="count-shifts">0</span>
+          </div>
+        </div>
+        <div class="ap-filter">
+          <label class="ap-filter__item"><input type="checkbox" id="flt-live"> <span data-i18n="cc_flt_live">только в эфире</span></label>
+          <label class="ap-filter__item"><input type="checkbox" id="flt-break"> <span data-i18n="cc_flt_break">с обедом</span></label>
+          <label class="ap-filter__item"><input type="checkbox" id="flt-sos"> <span data-i18n="cc_flt_sos">с SOS</span></label>
+          <label class="ap-filter__item"><input type="checkbox" id="flt-stale"> <span data-i18n="cc_flt_stale">нет обновлений &gt; 5 мин</span></label>
+        </div>
+        <div id="critical-now" class="ap-critical" style="display:none"></div>
+        <div id="list-shifts" class="ap-card__body muted"><span data-i18n="cc_loading">Загрузка…</span></div>
+      </section>
+
+      <section class="ap-card">
+        <div class="ap-card__head">
+          <div class="ap-card__title"><i class="fa-solid fa-burger"></i> <span data-i18n="cc_sidebar_breaks">Обеды</span></div>
+          <div class="ap-badges"><span class="ap-badge" id="count-breaks">0</span></div>
+        </div>
+        <div id="list-breaks" class="ap-card__body muted">—</div>
+      </section>
+
+      <section class="ap-card ap-card--danger">
+        <div class="ap-card__head">
+          <div class="ap-card__title"><i class="fa-solid fa-triangle-exclamation"></i> <span data-i18n="cc_sidebar_sos">SOS</span></div>
+          <div class="ap-badges"><span class="ap-badge ap-badge--danger" id="count-sos">0</span></div>
+        </div>
+        <div id="list-sos" class="ap-card__body muted">—</div>
+        <div class="ap-card__foot muted"><span data-i18n="cc_sidebar_sos_hint">Новые SOS всплывают поверх экрана. Клик по записи — фокус на карте.</span></div>
+      </section>
+
+      <section class="ap-card">
+        <div class="ap-card__head">
+          <div class="ap-card__title"><i class="fa-solid fa-bell"></i> <span data-i18n="cc_sidebar_pending">Заявки (pending)</span></div>
+          <div class="ap-badges"><span class="ap-badge" id="count-pending">0</span></div>
+        </div>
+        <div id="list-pending" class="ap-card__body muted">—</div>
+        <div class="ap-card__foot muted"><span data-i18n="cc_sidebar_pending_hint">Совет: одобрение сразу создаёт метку на основной карте.</span></div>
+      </section>
+
+      <section class="ap-card ap-card--hint">
+        <div class="ap-card__head">
+          <div class="ap-card__title"><i class="fa-solid fa-lightbulb"></i> <span data-i18n="cc_sidebar_tips">Быстрые подсказки</span></div>
+        </div>
+        <div class="ap-card__body muted" style="line-height:1.35">
+          • Клик по метке наряда → детали трека/стоянок.<br>
+          • Кнопка «Написать» открывает чат с выбранным пользователем.<br>
+          • После завершения live‑трекинга генерируется SVG‑снимок маршрута.<br>
+          • Для «дежурит/не дежурит» ориентируйтесь на «стоянки» (R≈5–10м).
+        </div>
+      </section>
+
+    </aside>
+
+    <main class="ap-main">
+
+<div id="ap-overlay" class="ap-overlay">
+  <div id="ap-kpi" class="ap-kpi">
+    <div class="ap-kpi__item"><div class="ap-kpi__lbl" data-i18n="cc_kpi_shifts">Наряды</div><div class="ap-kpi__val" id="kpi-shifts">0</div></div>
+    <div class="ap-kpi__item"><div class="ap-kpi__lbl" data-i18n="cc_kpi_live">В эфире</div><div class="ap-kpi__val" id="kpi-live">0</div></div>
+          <div class="ap-kpi__item"><div class="ap-kpi__lbl" data-i18n="cc_kpi_breaks">Обеды</div><div class="ap-kpi__val" id="kpi-breaks">0</div></div>
+    <div class="ap-kpi__item"><div class="ap-kpi__lbl"><span data-i18n="cc_btn_problems">Проблемы</span></div><div class="ap-kpi__val" id="kpi-problems">0</div></div>
+    <div class="ap-kpi__item"><div class="ap-kpi__lbl" data-i18n="cc_kpi_sos">SOS</div><div class="ap-kpi__val" id="kpi-sos">0</div></div>
+    <div class="ap-kpi__item"><div class="ap-kpi__lbl" data-i18n="cc_kpi_stale">Нет связи</div><div class="ap-kpi__val" id="kpi-stale">0</div></div>
+    <div class="ap-kpi__item"><div class="ap-kpi__lbl" data-i18n="cc_kpi_acc">Точность</div><div class="ap-kpi__val" id="kpi-acc">—</div></div>
+    <div class="ap-kpi__item"><div class="ap-kpi__lbl" data-i18n="cc_kpi_queue">Очередь</div><div class="ap-kpi__val" id="kpi-queue">0</div></div>
+  </div>
+
+  <div id="ap-quickfilters" class="ap-quickfilters" aria-label="Быстрые фильтры">
+    <button class="ap-chip active" type="button" data-qf="all"><span class="ap-chip__lbl" data-i18n="cc_qf_all">Все</span> <span class="ap-chip__count" id="qf-all">0</span></button>
+    <button class="ap-chip" type="button" data-qf="live"><span class="ap-chip__lbl" data-i18n="cc_qf_live">В эфире</span> <span class="ap-chip__count" id="qf-live">0</span></button>
+    <button class="ap-chip" type="button" data-qf="problems"><span data-i18n="cc_btn_problems">Проблемы</span><span class="ap-chip__count" id="qf-problems">0</span></button>
+    <button class="ap-chip" type="button" data-qf="sos"><span class="ap-chip__lbl" data-i18n="cc_qf_sos">SOS</span> <span class="ap-chip__count" id="qf-sos">0</span></button>
+    <button class="ap-chip" type="button" data-qf="stale"><span class="ap-chip__lbl" data-i18n="cc_qf_stale">Нет связи</span> <span class="ap-chip__count" id="qf-stale">0</span></button>
+    <button class="ap-chip" type="button" data-qf="revoked"><span class="ap-chip__lbl" data-i18n="cc_qf_revoked">Отозвано</span> <span class="ap-chip__count" id="qf-revoked">0</span></button>
+  </div>
+</div>
+
+<div id="ap-empty" class="ap-empty" style="display:none">
+  <div class="ap-empty__title">Сейчас пусто</div>
+  <div class="ap-empty__text muted">Нет активных нарядов/SOS/обедов. Для теста: в боте нажмите «Начать службу» → отправьте live-локацию, или создайте SOS.</div>
+</div>
+
+<div id="map" class="ap-map"></div>
+      <!-- Right drawer: карточка наряда -->
+      <div id="ap-drawer" class="ap-drawer" aria-hidden="true">
+        <div class="ap-drawer__head">
+          <div class="ap-drawer__title">
+            <div id="drawer-title" class="ap-drawer__title-main">Наряд</div>
+            <div id="drawer-sub" class="ap-drawer__title-sub muted">—</div>
+          </div>
+          <div class="ap-drawer__head-actions">
+            <button id="drawer-pan" class="btn" type="button" title="Показать на карте"><i class="fa-solid fa-location-crosshairs"></i></button>
+            <button id="drawer-chat" class="btn" type="button" title="Написать"><i class="fa-solid fa-comments"></i></button>
+            <button id="drawer-copy" class="btn" type="button" title="Скопировать координаты"><i class="fa-solid fa-copy"></i></button>
+            <button id="drawer-device" class="btn" type="button" title="Открыть устройство"><i class="fa-solid fa-mobile-screen"></i></button>
+            <button id="drawer-close" class="btn minimal" type="button" title="Закрыть">✕</button>
+          </div>
+        </div>
+
+        <div class="ap-drawer__tabs">
+          <button class="ap-tab active" data-tab="overview" type="button"><span data-i18n="cc_tab_overview">Обзор</span></button>
+          <button class="ap-tab" data-tab="track" type="button"><span data-i18n="cc_tab_track">Маршрут</span></button>
+          <button class="ap-tab" data-tab="journal" type="button"><span data-i18n="cc_tab_journal">Журнал</span></button>
+        </div>
+
+        <div class="ap-drawer__body">
+          <div class="ap-pane" data-pane="overview"></div>
+          <div class="ap-pane" data-pane="track" style="display:none"></div>
+          <div class="ap-pane" data-pane="journal" style="display:none"></div>
+        </div>
+      </div>
+      <div id="toast" class="ap-toast"></div>
+    </main>
+  </div>
+
+  <!-- Chat modal (как на главной странице) -->
+  <div id="chat-backdrop" class="backdrop">
+    <div class="modal chat">
+      <div class="modal-head">
+        <b><span data-i18n="cc_btn_chat">Чат</span></b>
+        <button id="chat-close" class="btn minimal" title="Закрыть">✕</button>
+      </div>
+      <div class="modal-body chat-body">
+        <div class="chat-list">
+          <div class="chat-list-controls">
+            <input id="chat-search" class="input chat-search" placeholder="Поиск по нику или ID">
+            <label class="chat-unread-only">
+              <input type="checkbox" id="chat-only-unread">
+              Только с новыми
+            </label>
+          </div>
+          <div class="chat-list-body"></div>
+        </div>
+        <div class="chat-dialog">
+          <div class="chat-dialog-head">
+            <div class="chat-peer">
+              <span id="chat-peer-name" class="chat-username muted">Выберите диалог слева</span>
+              <span id="chat-peer-id" class="chat-peer-id muted"></span>
+            </div>
+            <div class="chat-status-wrap">
+              <label class="chat-status-label muted">
+                Статус:
+                <select id="chat-status" class="chat-status-select">
+                  <option value="new">Новый</option>
+                  <option value="in_progress">В работе</option>
+                  <option value="closed">Закрыт</option>
+                </select>
+              </label>
+            </div>
+            <button id="chat-clear" class="btn minimal" type="button" title="Очистить историю диалога">🗑</button>
+          </div>
+          <div class="chat-messages"></div>
+          <div class="chat-input">
+            <input id="chat-input-field" placeholder="Введите сообщение…" class="input">
+            <button id="chat-send" class="btn primary" type="button">Отправить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/realtime.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/recs.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/admin_panel.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/sos.js') }}"></script>
+</body>
+</html>
